@@ -14,3 +14,74 @@
 .team-carousel-toolbar{display:flex;justify-content:space-between;align-items:center;margin:0 0 14px;color:#8190a5;font-size:9px;font-weight:800;letter-spacing:.14em}.team-carousel-toggle{border:0;background:none;color:#264790;font-size:10px;font-weight:700;text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:8px}.team-carousel{width:100%;overflow:hidden;position:relative}.team-track{display:flex;width:max-content;gap:20px;animation:hsr-team-scroll 44s linear infinite}.team-carousel:hover .team-track,.team-carousel:focus-within .team-track,.team-carousel[data-paused=true] .team-track{animation-play-state:paused}.team-set{display:flex;flex:none;gap:20px}.team-carousel .team-card{width:clamp(235px,27vw,300px);flex:none}.team-carousel .team-photo{height:350px}.team-carousel .team-info{min-height:75px}@keyframes hsr-team-scroll{from{transform:translateX(0)}to{transform:translateX(calc(-50% - 10px))}}@media(max-width:680px){.team-carousel-toolbar{margin-bottom:10px;font-size:8px}.team-track,.team-set{gap:12px}.team-track{animation-duration:38s}.team-carousel .team-card{width:220px}.team-carousel .team-photo{height:270px}}@media(prefers-reduced-motion:reduce){.team-track{animation:none!important}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 .button-link{height:auto;min-height:64px;padding:8px 14px;gap:12px}.button-link-label{font-size:11px;line-height:1.15;white-space:nowrap}.button-link-price{display:flex;flex-direction:column;align-items:flex-start;gap:3px;line-height:1}.button-link-price del{font-size:9px;color:#ffffffb3;font-weight:500;white-space:nowrap}.button-link-price strong{font-size:14px;white-space:nowrap}.button-link-price small{font-size:7px;letter-spacing:.08em}.button-link.nav-cta{min-height:52px;padding:6px 12px;gap:8px}.nav-cta .button-link-label{font-size:9px}.nav-cta .button-link-price del{font-size:8px}.nav-cta .button-link-price strong{font-size:11px}.mobile-register>div{display:none}.mobile-register .button-link{width:100%;justify-content:space-between}@media(max-width:680px){.button-link{min-height:58px;padding:8px 12px;gap:9px}.button-link-label{font-size:10px}.button-link-price del{font-size:8px}.button-link-price strong{font-size:13px}.mobile-register{justify-content:stretch}.mobile-register .button-link{flex:1}.mobile-register .button-link-price strong{color:#fff;font-size:16px}}
+
+/* ---------- Countdown (Monday 6:30 PM IST) ---------- */
+.register-button-with-countdown { width: 100%; max-width: 320px; }
+.register-button-with-countdown > [role="timer"] { margin-bottom: 8px !important; }
+.register-button-row { width: 100%; }
+.register-button-row .button-link { width: 100%; }
+.countdown { margin: 4px 0 18px; text-align: center; width: 100%; }
+.countdown-label { display: block; font-size: 10px; letter-spacing: .14em; font-weight: 800; color: #587096; margin-bottom: 10px; }
+.countdown-units { display: flex; justify-content: center; gap: 10px; }
+.countdown-unit { flex: 1; min-width: 60px; padding: 12px 6px; border-radius: 10px; background: #264790; color: #fff; }
+.countdown-unit strong { display: block; font-size: 28px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; }
+.countdown-unit strong { color: #fff !important; }
+.countdown-unit small { display: block; margin-top: 6px; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; opacity: .8; }
+
+/* Mobile sticky bar: countdown on top, button below */
+.mobile-register { flex-direction: column; align-items: stretch; gap: 8px; }
+.mobile-register > .countdown { display: block; margin: 0; }
+.mobile-register .button-link { flex: none; }
+.countdown-compact .countdown-units { gap: 6px; }
+.countdown-compact .countdown-unit { min-width: 0; padding: 6px 4px; border-radius: 8px; }
+.countdown-compact .countdown-unit strong { font-size: 17px; }
+.countdown-compact .countdown-unit small { font-size: 8px; margin-top: 3px; }
+
+/* Extra space at the bottom so the taller mobile bar doesn't cover the footer */
+@media(max-width:680px){.site-footer{padding-bottom:150px}}
+
+@media(max-width:680px){
+  .hero-actions { align-items: stretch; flex-direction: column; }
+  .register-button-with-countdown { max-width: none; }
+  .hero-actions > .register-button-with-countdown { width: 100%; }
+
+  .mobile-register {
+    display: grid !important;
+    grid-template-columns: 88px minmax(0, 1fr);
+    grid-template-rows: auto 46px;
+    column-gap: 10px;
+    row-gap: 6px;
+    min-height: 118px;
+  }
+  .mobile-register > .countdown {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .mobile-register > div:first-child {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .mobile-register > .button-link {
+    grid-column: 2;
+    grid-row: 2;
+    width: 100%;
+    min-width: 0;
+  }
+  .countdown-compact .countdown-label {
+    margin-bottom: 4px;
+    font-size: 7px;
+  }
+  .countdown-compact .countdown-units {
+    gap: 4px;
+  }
+  .countdown-compact .countdown-unit {
+    padding: 4px 3px;
+  }
+  .countdown-compact .countdown-unit strong {
+    font-size: 15px;
+  }
+  .countdown-compact .countdown-unit small {
+    margin-top: 2px;
+    font-size: 7px;
+  }
+}

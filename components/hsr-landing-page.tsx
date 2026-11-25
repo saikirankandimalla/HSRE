@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ArrowDown, ArrowRight, Award, BookOpen, BriefcaseBusiness, Check, ChevronDown, Compass, GraduationCap, Menu, MessageCircle, Network, ShieldCheck, Sparkles, X } from 'lucide-react'
 
 const payUrl = 'https://rzp.io/rzp/sjsaG9l'
@@ -41,13 +41,76 @@ const faqs = [
   ['How do I make the payment?', 'Payment is completed on the Razorpay page. Please review the final amount and merchant details there before paying.'],
 ]
 
+/* ---------- Weekly Monday 6:30 PM IST countdown ---------- */
+const IST_OFFSET = 5.5 * 60 * 60 * 1000
+const COUNTDOWN_CONFIG = { timeZone: 'Asia/Kolkata', weekday: 1, hour: 18, minute: 30 } as const
+
+function validateCountdownConfig() {
+  if (
+    COUNTDOWN_CONFIG.timeZone !== 'Asia/Kolkata' ||
+    !Number.isInteger(COUNTDOWN_CONFIG.weekday) ||
+    COUNTDOWN_CONFIG.weekday < 0 ||
+    COUNTDOWN_CONFIG.weekday > 6 ||
+    !Number.isInteger(COUNTDOWN_CONFIG.hour) ||
+    COUNTDOWN_CONFIG.hour < 0 ||
+    COUNTDOWN_CONFIG.hour > 23 ||
+    !Number.isInteger(COUNTDOWN_CONFIG.minute) ||
+    COUNTDOWN_CONFIG.minute < 0 ||
+    COUNTDOWN_CONFIG.minute > 59
+  ) {
+    return 'Countdown configuration is invalid'
+  }
+
+  return null
+}
+
+function getNextMondayDeadline(now: number) {
+  const ist = new Date(now + IST_OFFSET)
+  const daysToMonday = (COUNTDOWN_CONFIG.weekday - ist.getUTCDay() + 7) % 7
+  const target = Date.UTC(
+    ist.getUTCFullYear(),
+    ist.getUTCMonth(),
+    ist.getUTCDate() + daysToMonday,
+    COUNTDOWN_CONFIG.hour,
+    COUNTDOWN_CONFIG.minute,
+    0,
+  ) - IST_OFFSET
+
+  return target > now ? target : target + 7 * 24 * 60 * 60 * 1000
+}
+
+function Countdown({ compact = false, left, configError }: { compact?: boolean; left: number | null; configError: string | null }) {
+  const s = left === null ? null : Math.max(0, left)
+  const hasEnded = configError === null && s === 0
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const units = [
+    { label: 'Days', value: s === null ? '--' : pad(Math.floor(s / 86400)) },
+    { label: 'Hours', value: s === null ? '--' : pad(Math.floor((s % 86400) / 3600)) },
+    { label: 'Mins', value: s === null ? '--' : pad(Math.floor((s % 3600) / 60)) },
+    { label: 'Secs', value: s === null ? '--' : pad(s % 60) },
+  ]
+
+  return (
+    <div className={`countdown ${compact ? 'countdown-compact' : ''}`} role="timer" aria-live="polite" aria-label={configError ?? (hasEnded ? 'Monday 6:30 PM IST deadline ended' : 'Time left until Monday 6:30 PM IST')}>
+      <div className="countdown-label">{configError ?? (hasEnded ? 'REGISTRATION WINDOW ENDED' : compact ? 'NEXT MONDAY · 6:30 PM IST' : 'NEXT MONDAY SESSION STARTS IN')}</div>
+      <div className="countdown-units">
+        {units.map(({ label, value }) => (
+          <div className="countdown-unit" key={label}><strong>{value}</strong><small>{label}</small></div>
+        ))}
+      </div>
+    </div>
+  )
+}
+/* ------------------------------------------------------ */
+
 function Logo({ light = false }: { light?: boolean }) {
   return <a href="#top" className={`brand ${light ? 'brand-light' : ''}`} aria-label="Hyderabad School of Real Estate home">
     <Image src={logoUrl} alt="Hyderabad School of Real Estate logo" width={1840} height={864} priority className="brand-image" unoptimized />
   </a>
 }
-function ButtonLink({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <a className={`button-link ${className}`} href={payUrl} target="_blank" rel="noopener noreferrer"><span className="button-link-label">{children}</span><span className="button-link-price"><del>₹10,000</del><strong>₹999 <small>ONLY</small></strong></span><ArrowRight size={17} aria-hidden="true" /></a>
+function ButtonLink({ children, className = '', showCountdown = false, countdownLeft = null, countdownConfigError = null }: { children: React.ReactNode; className?: string; showCountdown?: boolean; countdownLeft?: number | null; countdownConfigError?: string | null }) {
+  const button = <a className={`button-link ${className}`} href={payUrl} target="_blank" rel="noopener noreferrer"><span className="button-link-label">{children}</span><span className="button-link-price"><del>₹10,000</del><strong>₹999 <small>ONLY</small></strong></span><ArrowRight size={17} aria-hidden="true" /></a>
+  return showCountdown ? <div className="register-button-with-countdown"><Countdown compact left={countdownLeft} configError={countdownConfigError} /><div className="register-button-row">{button}</div></div> : button
 }
 
 export default function HsrLandingPage() {
@@ -55,6 +118,37 @@ export default function HsrLandingPage() {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null)
   const [teamPaused, setTeamPaused] = useState(false)
   const [openFaq, setOpenFaq] = useState<number | null>(0)
+  const [countdownLeft, setCountdownLeft] = useState<number | null>(null)
+  const [countdownConfigError] = useState(() => validateCountdownConfig())
+
+  useEffect(() => {
+    if (countdownConfigError) {
+      setCountdownLeft(null)
+      return
+    }
+
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+    const tick = () => {
+      if (timeoutId) clearTimeout(timeoutId)
+      const now = Date.now()
+      const deadline = getNextMondayDeadline(now)
+      setCountdownLeft(Math.max(0, Math.floor((deadline - now) / 1000)))
+      timeoutId = setTimeout(tick, 1000 - (now % 1000))
+    }
+
+    tick()
+
+    const syncWhenVisible = () => {
+      if (!document.hidden) tick()
+    }
+
+    document.addEventListener('visibilitychange', syncWhenVisible)
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId)
+      document.removeEventListener('visibilitychange', syncWhenVisible)
+    }
+  }, [countdownConfigError])
   return <main id="top">
     <header className="site-header">
       <div className="header-inner"><Logo /><button className="menu-toggle" aria-label={menuOpen ? 'Close navigation' : 'Open navigation'} aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>{menuOpen ? <X /> : <Menu />}</button>
@@ -64,7 +158,7 @@ export default function HsrLandingPage() {
 
     <section className="hero section-wrap">
       <div className="hero-copy"><div className="eyebrow"><span className="eyebrow-dot" /> REAL ESTATE EDUCATION · HYDERABAD</div><div className="hero-intro-portrait"><Image src={mentorImage} alt="Dr. Gampa Nageshwar Rao, HSR Chief Mentor and Lead Trainer" width={900} height={1100} priority className="hero-intro-portrait-image" unoptimized /><span>Dr. Gampa Nageshwar Rao · Chief Mentor</span></div><h1>Build your career<br />in real estate <span>with HSR.</span></h1><p className="hero-intro">Practical knowledge. Expert mentorship. A more confident start in Hyderabad’s real estate industry.</p>
-        <div className="hero-points"><span><Check /> Professional coaching</span><span><Check /> Industry mentorship</span><span><Check /> Hyderabad market insights</span></div><div className="hero-actions"><ButtonLink>Register now</ButtonLink><a className="text-link" href="#about">Explore HSR <ArrowDown size={15} /></a></div><p className="hero-note"><ShieldCheck size={15} /> Secure payment via Razorpay</p>
+        <div className="hero-points"><span><Check /> Professional coaching</span><span><Check /> Industry mentorship</span><span><Check /> Hyderabad market insights</span></div><div className="hero-actions"><ButtonLink showCountdown countdownLeft={countdownLeft} countdownConfigError={countdownConfigError}>Register now</ButtonLink><a className="text-link" href="#about">Explore HSR <ArrowDown size={15} /></a></div><p className="hero-note"><ShieldCheck size={15} /> Secure payment via Razorpay</p>
       </div>
       <div className="hero-visual"><div className="hero-photo-frame"><Image src={mentorImage} alt="Dr. Gampa Nageshwar Rao, HSR Chief Mentor and Lead Trainer" width={900} height={1100} priority className="hero-photo" unoptimized /><div className="photo-caption"><span className="caption-mark">HSR</span><div><strong>Learn from the field.</strong><small>Meet your mentor</small></div><ArrowRight size={18} /></div></div><div className="hero-stamp"><span>LEARN</span><b>LOCAL</b><small>Grow with HSR</small></div><div className="hero-line" /></div>
     </section>
@@ -76,17 +170,17 @@ export default function HsrLandingPage() {
 
     <section id="team" className="team section-pad"><div className="section-wrap"><div className="section-kicker">03 / PEOPLE BEHIND HSR</div><div className="section-heading-row"><div><h2>Meet the HSR<br /><span>core team.</span></h2></div><p>Learn from experienced real estate professionals and lead trainers.</p></div><div className="team-carousel-toolbar"><span>MEET THE PEOPLE BEHIND HSR</span><button className="team-carousel-toggle" type="button" onClick={() => setTeamPaused(!teamPaused)} aria-pressed={teamPaused}>{teamPaused ? 'Play team' : 'Pause team'}</button></div><div className="team-carousel" data-paused={teamPaused}><div className="team-track"><div className="team-set">{members.map((member, index) => <article className={`team-card ${member.featured ? 'team-featured' : ''}`} key={member.name}><div className="team-photo">{member.image ? <Image src={member.image} alt={member.name} width={700} height={850} loading="lazy" unoptimized /> : <div className="initials-portrait" aria-label={`Portrait of ${member.name} not yet supplied`}><span>{member.initials}</span><small>HSR CORE TEAM</small></div>}<span className="team-index">0{index + 1}</span></div><div className="team-info"><div><h3>{member.name}</h3><p>{member.role}</p></div><ArrowRight size={18} /></div></article>)}</div><div className="team-set" aria-hidden="true">{members.map((member, index) => <article className={`team-card ${member.featured ? 'team-featured' : ''}`} key={`loop-${member.name}`}><div className="team-photo">{member.image ? <Image src={member.image} alt="" width={700} height={850} loading="lazy" unoptimized /> : <div className="initials-portrait" aria-hidden="true"><span>{member.initials}</span><small>HSR CORE TEAM</small></div>}<span className="team-index">0{index + 1}</span></div><div className="team-info"><div><h3>{member.name}</h3><p>{member.role}</p></div><ArrowRight size={18} /></div></article>)}</div></div></div></div></section>
 
-    <section className="benefits section-pad"><div className="section-wrap"><div className="section-kicker">04 / YOUR NEXT STEP</div><div className="benefits-layout"><div><h2>More than<br />a course.<br /><span>A foundation.</span></h2><p>Build a practical base for the conversations, decisions and opportunities that shape a real estate career.</p><ButtonLink>Start learning</ButtonLink></div><div className="benefit-grid">{benefits.map(({ icon: Icon, title, body }, i) => <article className="benefit-card" key={title}><span className="benefit-icon"><Icon size={20} /></span><span className="benefit-num">0{i + 1}</span><h3>{title}</h3><p>{body}</p></article>)}</div></div></div></section>
+    <section className="benefits section-pad"><div className="section-wrap"><div className="section-kicker">04 / YOUR NEXT STEP</div><div className="benefits-layout"><div><h2>More than<br />a course.<br /><span>A foundation.</span></h2><p>Build a practical base for the conversations, decisions and opportunities that shape a real estate career.</p><ButtonLink showCountdown countdownLeft={countdownLeft} countdownConfigError={countdownConfigError}>Start learning</ButtonLink></div><div className="benefit-grid">{benefits.map(({ icon: Icon, title, body }, i) => <article className="benefit-card" key={title}><span className="benefit-icon"><Icon size={20} /></span><span className="benefit-num">0{i + 1}</span><h3>{title}</h3><p>{body}</p></article>)}</div></div></div></section>
 
     <section id="gallery" className="gallery-section section-pad"><div className="section-wrap"><div className="section-kicker">05 / INSIDE HSR</div><div className="section-heading-row"><div><h2>Glimpses of HSR<br /><span>training sessions.</span></h2></div><p>A glimpse into our learning environment, training sessions and student experiences.</p></div><div className="gallery-grid">{gallery.map((src, index) => <button className={`gallery-item gallery-item-${index + 1}`} key={src} onClick={() => setSelectedPhoto(src)} aria-label={`Enlarge HSR training photo ${index + 1}`}><Image src={src} alt={`HSR training session ${index + 1}`} width={1000} height={700} loading="lazy" unoptimized /><span className="gallery-zoom">View photo <ArrowRight size={15} /></span></button>)}</div></div></section>
 
-    <section className="offer-section section-pad"><div className="offer-card section-wrap"><div className="offer-left"><div className="section-kicker">YOUR NEXT CHAPTER STARTS HERE</div><h2>Start your real estate<br />journey <em>today.</em></h2><p>Invest in your skills, your confidence and your next opportunity.</p><div className="offer-includes"><span><Check /> Expert-led training</span><span><Check /> Practical industry learning</span><span><Check /> Hyderabad market focus</span></div></div><div className="offer-price"><span className="original-price">Registration fee <s>₹10,000</s></span><span className="offer-label">SPECIAL OFFER</span><div className="price">₹<strong>999</strong><small>ONLY</small></div><ButtonLink className="offer-cta">Register now</ButtonLink><small className="secure-note"><ShieldCheck size={14} /> Payment handled securely by Razorpay</small></div></div></section>
+    <section className="offer-section section-pad"><div className="offer-card section-wrap"><div className="offer-left"><div className="section-kicker">YOUR NEXT CHAPTER STARTS HERE</div><h2>Start your real estate<br />journey <em>today.</em></h2><p>Invest in your skills, your confidence and your next opportunity.</p><div className="offer-includes"><span><Check /> Expert-led training</span><span><Check /> Practical industry learning</span><span><Check /> Hyderabad market focus</span></div></div><div className="offer-price"><span className="original-price">Registration fee <s>₹10,000</s></span><span className="offer-label">SPECIAL OFFER</span><div className="price">₹<strong>999</strong><small>ONLY</small></div><ButtonLink className="offer-cta" showCountdown countdownLeft={countdownLeft} countdownConfigError={countdownConfigError}>Register now</ButtonLink><small className="secure-note"><ShieldCheck size={14} /> Payment handled securely by Razorpay</small></div></div></section>
 
     <section className="faq-section section-pad"><div className="section-wrap faq-layout"><div><div className="section-kicker">06 / GOOD TO KNOW</div><h2>Questions,<br /><span>answered.</span></h2><p>Still deciding? Talk to the HSR team for details about the current programme.</p><a href="tel:+918977533213" className="underlined-link">Call 89775 33213 <ArrowRight size={16} /></a></div><div className="faq-list">{faqs.map(([question, answer], i) => <div className={`faq-row ${openFaq === i ? 'faq-open' : ''}`} key={question}><button onClick={() => setOpenFaq(openFaq === i ? null : i)} aria-expanded={openFaq === i}><span>{question}</span><ChevronDown size={18} /></button>{openFaq === i && <p>{answer}</p>}</div>)}</div></div></section>
 
-    <section className="final-cta"><div className="final-inner"><div className="section-kicker">TAKE THE FIRST STEP</div><h2>Your real estate<br />journey starts <em>here.</em></h2><ButtonLink>Register now</ButtonLink><span className="cta-detail">Secure payment on Razorpay <ArrowRight size={14} /></span></div><div className="final-orbit" aria-hidden="true" /></section>
+    <section className="final-cta"><div className="final-inner"><div className="section-kicker">TAKE THE FIRST STEP</div><h2>Your real estate<br />journey starts <em>here.</em></h2><ButtonLink showCountdown countdownLeft={countdownLeft} countdownConfigError={countdownConfigError}>Register now</ButtonLink><span className="cta-detail">Secure payment on Razorpay <ArrowRight size={14} /></span></div><div className="final-orbit" aria-hidden="true" /></section>
     <footer className="site-footer"><div className="section-wrap"><div className="footer-top"><Logo light /><div className="footer-contact"><span>GET IN TOUCH</span><a href="tel:+918977533213">+91 89775 33213</a><a href="mailto:info@hsre.in">info@hsre.in</a></div><div className="footer-contact"><span>FIND US</span><p>Hyderabad, Telangana, India</p><a href="https://www.hsre.in/" target="_blank" rel="noopener noreferrer">hsre.in <ArrowRight size={14} /></a></div><div className="footer-contact"><span>FOLLOW HSR</span><a href="https://www.hsre.in/" target="_blank" rel="noopener noreferrer">Official website <ArrowRight size={14} /></a></div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} Hyderabad School of Real Estate</span><div><a href="https://www.hsre.in/privacy-policy/" target="_blank" rel="noopener noreferrer">Privacy policy</a><a href="https://www.hsre.in/terms-and-conditions/" target="_blank" rel="noopener noreferrer">Terms & conditions</a></div><span>Learn local. Grow with HSR.</span></div></div></footer>
-    <div className="mobile-register"><div><span>REGISTRATION OFFER</span><strong>₹999 <small>ONLY</small></strong></div><ButtonLink>Register now</ButtonLink></div>
+    <div className="mobile-register"><div><span>REGISTRATION OFFER</span><strong>₹999 <small>ONLY</small></strong></div><Countdown compact left={countdownLeft} configError={countdownConfigError} /><ButtonLink>Register now</ButtonLink></div>
     {selectedPhoto && <div className="lightbox" role="dialog" aria-modal="true" aria-label="Enlarged training photo" onClick={() => setSelectedPhoto(null)}><button className="lightbox-close" aria-label="Close enlarged photo" onClick={() => setSelectedPhoto(null)}><X /></button><Image src={selectedPhoto} alt="Enlarged HSR training session" width={1600} height={1100} unoptimized onClick={(event) => event.stopPropagation()} /></div>}
   </main>
 }
